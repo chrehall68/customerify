@@ -166,3 +166,4 @@ cython_debug/
 node_modules/
 bun.lockb
 public/
+totalBytes.txt

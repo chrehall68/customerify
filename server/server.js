@@ -34,7 +34,7 @@ app.post("/answer", (req, res) => {
   r.say("Please say something");
   const start = r.start();
   start.stream({
-    url: "wss://116c-2607-f140-6000-8006-593f-a7d5-8b98-a55e.ngrok-free.app/",
+    url: `wss://${process.env.NGROK_URL}/`,
   });
   r.pause({ length: 120 })  // hardcoded constant;
 
@@ -96,7 +96,7 @@ app.ws("/", function (ws, req) {
         console.log("empty transcript, stopping with final transcript: " + transcript);
         if (!done) {
           done = true;
-          const msg = '<?xml version="1.0" encoding="UTF-8"?><Response><Stop><Stream/></Stop><Redirect>https://116c-2607-f140-6000-8006-593f-a7d5-8b98-a55e.ngrok-free.app/respond</Redirect></Response>';
+          const msg = `<?xml version="1.0" encoding="UTF-8"?><Response><Stop><Stream/></Stop><Redirect>https://${process.env.NGROK_URL}/respond</Redirect></Response>`;
           await client.calls(callSid).update({
             twiml: msg
           })
