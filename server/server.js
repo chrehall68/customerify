@@ -54,7 +54,7 @@ app.post("/respond", async (req, res) => {
   const confidence = f.Confidence;
   var r = new VoiceResponse();
 
-  const speech = new Speech("590a1049fa244ae8aa8c4a4db9ee9659");
+  const speech = new Speech(process.env.LMNT_API_KEY);
   const text =
     "Alright, I'm " +
     parseInt("" + confidence * 100) +
