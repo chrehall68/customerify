@@ -8,6 +8,7 @@ import requests
 import selenium
 import selenium.webdriver as webdriver
 from selenium.webdriver import ChromeOptions
+import time
 
 
 def get_domain_name(url: str) -> str:
@@ -110,8 +111,10 @@ async def main(
             url = await queue.get()
             explored_urls.add(url)
             driver.get(url)
-            html = driver.execute_script("return document.documentElement.innerHTML;")
-            # print(html)
+            time.sleep(5)
+            html = driver.execute_script(
+                "return document.getElementById('root') ? document.getElementById('root').innerHTML : document.documentElement.innerHTML;"
+            )
             soup = bs4.BeautifulSoup(html, "html.parser")
             for link in soup.find_all("a"):
                 href = link.get("href", "")
@@ -128,7 +131,6 @@ async def main(
 
             if document_callback:
                 await document_callback(soup, str(uuid.uuid4()))
-
     return explored_urls
 
 
