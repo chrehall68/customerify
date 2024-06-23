@@ -7,13 +7,16 @@ deploy_result = None
 
 def deploy(company_name: str, url: str) -> bool:
     # make a post request to backend to deploy an agent for this company
-    return (
-        requests.post(
-            os.environ["BACKEND_BASE_URL"] + "/api/customerify/store",
-            json={"company_name": company_name, "url": url},
-        ).status_code
-        == 200
+    r1 = requests.post(
+        os.environ["FLASK_URL"] + "/api/customerify/store",
+        json={"company_name": company_name, "url": url},
+        timeout=60,
     )
+    r2 = requests.post(
+        "https://" + os.environ["NGROK_URL"] + "/deploy",
+        data={"company_name": company_name, "url": url},
+    )
+    return r1.status_code == 200 and r2.status_code == 200
 
 
 # Initialize session state to store submissions

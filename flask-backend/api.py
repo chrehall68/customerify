@@ -21,19 +21,24 @@ def store():
             print(base_url)
             urls = scrape.main(base_url, 10, 1)
             print(urls)
-            load_documents(urls)
+            load_documents(list(urls))
             embed_documents()
-        except:
+            return "", 200
+        except Exception as e:
+            print(e)
             return "", 500
 
 
 @app.route("/api/customerify/query", methods=["POST"])
 def query():
+    # request should have
+    # query
+    # call_id
     if request.method == "POST":
         try:
             query = request.json.get("query")
             # print(query, company_name)
-            user_context.append("QUESTION: " + query)
+            user_context[request.json.get("call_id")].append("QUESTION: " + query)
             response = query_index("\n\n".join(user_context))
             user_context[-1] = "\nANSWER: " + str(response)
             return str(response), 200

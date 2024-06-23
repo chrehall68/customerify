@@ -12,26 +12,60 @@ import fs, { writeFileSync } from "fs";
 import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 import twilio from 'twilio';
 
+// globals
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_API_KEY);
 const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
 var transcript;
 var callSid;
 var done;
 var totalBytes = Buffer.alloc(0)
+var companyName;
+var welcomMessageDict = {}
 
+// allow websockets
 const a = expressWs(app);
 
+// use
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
+// debug purposes
 app.get("/dev", (req, res) => {
   return res.json({"result":"hello"});
 });
 
-app.post("/answer", (req, res) => {
+app.post("/deploy", async (req, res) => {
+  companyName = req.body["company_name"];
+  console.log("received deploy request for ", companyName);
+  if (welcomMessageDict[companyName] === undefined) {
+    // synthesize welcome message
+    const speech = new Speech(process.env.LMNT_API_KEY);
+    const text = "Hello, I'm a virtual assistant representing " + companyName + ". How can I help you today?";
+    console.log(text);
+    var output = await speech.synthesize(text, "lily", {
+      format: "wav",
+      sample_rate: 8000,
+    });
+
+    const filename = uuidv4() + ".wav";
+    fs.writeFileSync("./public/" + filename, output.audio);
+
+    welcomMessageDict[companyName] = filename
+  }
+  return res.status(200).send({});
+})
+
+// initialize workflow
+app.post("/start", (req, res) => {
   var r = new VoiceResponse();
-  r.say("Please say something");
+  r.play(welcomMessageDict[companyName]);
+  r.redirect("/listen");
+  res.send(r.toString());
+})
+
+app.post("/listen", (req, res) => {
+  var r = new VoiceResponse();
   const start = r.start();
   start.stream({
     url: `wss://${process.env.NGROK_URL}/`,
@@ -50,11 +84,17 @@ app.post("/respond", async (req, res) => {
   var r = new VoiceResponse();
 
   const speech = new Speech(process.env.LMNT_API_KEY);
-  const text =
-    "Alright, I'm pretty sure that you said: "+
-    speechResult;
-  console.log(text);
-  
+  const text = await fetch(process.env.FLASK_URL + "/api/customerify/query", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: speechResult,
+      call_id: callSid,
+    }),
+  })
+  console.log("received text: " + text);
   var output = await speech.synthesize(text, "lily", {
     format: "wav",
     sample_rate: 8000,
@@ -64,7 +104,7 @@ app.post("/respond", async (req, res) => {
   fs.writeFileSync("./public/" + filename, output.audio);
 
   r.play(filename);
-  r.redirect("/answer");
+  r.redirect("/lsten");
 
   res.send(r.toString());
 });
