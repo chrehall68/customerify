@@ -41,7 +41,7 @@ export TWILIO_ACCOUNT_SID=<your_twilio_accound_sid>
 export GROQ_API_KEY=<your_groq_api_key>
 export PINECONE_API_KEY=<your_pinecone_api_key>
 export LMNT_API_KEY=<your_lmnt_api_key>
-export OPENAI_API_KEY=<your_openai>api_key>
+export OPENAI_API_KEY=<your_openai_api_key>
 
 export FLASK_URL=http://localhost:5000
 export NGROK_URL=<ngrok_url_without_https://>
