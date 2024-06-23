@@ -1,6 +1,9 @@
 import bs4
 import aiohttp
 from asyncio.queues import Queue
+import asyncio
+from typing import Callable, Awaitable
+import uuid
 
 
 def get_domain_name(url: str) -> str:
@@ -33,7 +36,12 @@ def is_valid_url(url: str) -> bool:
     )
 
 
-async def main(base_url: str, max_urls: int = -1, timeout: int = 5) -> set:
+async def main(
+    base_url: str,
+    max_urls: int = -1,
+    timeout: int = 5,
+    document_callback: Callable[[bs4.BeautifulSoup, str], Awaitable[None]] = None,
+) -> set:
     if max_urls == -1:
         max_urls = float("inf")
     domain = get_domain_name(base_url)
@@ -64,6 +72,9 @@ async def main(base_url: str, max_urls: int = -1, timeout: int = 5) -> set:
                     await queue.put(href)
                     exploring_urls.add(href)
 
+            if document_callback:
+                await document_callback(soup, str(uuid.uuid4()))
+
         while queue.qsize() > 0 and len(explored_urls) < max_urls:
             # take all the urls from the queue
             urls = []
@@ -78,7 +89,6 @@ async def main(base_url: str, max_urls: int = -1, timeout: int = 5) -> set:
 
 
 if __name__ == "__main__":
-    import asyncio
     import datetime
 
     start = datetime.datetime.now()

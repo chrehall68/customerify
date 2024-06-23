@@ -1,5 +1,5 @@
 from flask import Flask, request
-from embed import load_documents, embed_documents
+from embed import save_document, embed_documents
 from rag import query_index
 import scrape
 from typing import Dict, List
@@ -20,13 +20,13 @@ async def store():
             base_url = request.json.get("url")
             company_name = request.json.get("company_name")
             print(base_url)
-            urls = await scrape.main(base_url, 10, 1)
-            print(urls)
-            load_documents(list(urls))
+            urls = await scrape.main(base_url, 10, 5, save_document)
+            print("got urls", urls)
             embed_documents()
             return "", 200
         except Exception as e:
-            print(e)
+            print("Got exception", e)
+            raise e
             return "", 500
 
 
