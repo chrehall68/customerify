@@ -1,6 +1,6 @@
 import bs4
-import requests
-from collections import deque
+import aiohttp
+from asyncio.queues import Queue
 
 
 def get_domain_name(url: str) -> str:
@@ -33,37 +33,56 @@ def is_valid_url(url: str) -> bool:
     )
 
 
-def main(base_url: str, max_urls: int = -1, timeout: int = 5) -> set:
+async def main(base_url: str, max_urls: int = -1, timeout: int = 5) -> set:
     if max_urls == -1:
         max_urls = float("inf")
     domain = get_domain_name(base_url)
     print(domain)
     explored_urls = set()
     exploring_urls = set()
-    queue = deque()
+    queue = Queue()
 
-    # basically, we can do a bfs from the base url
-    queue.append(base_url)
-    while len(queue) > 0 and len(explored_urls) < max_urls:
-        url = queue.popleft()
-        explored_urls.add(url)
-        soup = bs4.BeautifulSoup(requests.get(url, timeout=timeout).text, "html.parser")
+    async with aiohttp.ClientSession() as session:
+        # basically, we can do a bfs from the base url
+        await queue.put(base_url)
 
-        for link in soup.find_all("a"):
-            href = link.get("href", "")
-            if not is_valid_url(href) and href.startswith("/"):
-                href = base_url + href
-            if (
-                is_valid_url(href)
-                and href not in explored_urls
-                and href not in exploring_urls
-                and is_same_domain(href, domain)
-            ):
-                queue.append(href)
-                exploring_urls.add(href)
+        async def helper(url: str):
+            explored_urls.add(url)
+            soup = bs4.BeautifulSoup(
+                await (await session.get(url, timeout=timeout)).text(), "html.parser"
+            )
+            for link in soup.find_all("a"):
+                href = link.get("href", "")
+                if not is_valid_url(href) and href.startswith("/"):
+                    href = base_url + href
+                if (
+                    is_valid_url(href)
+                    and href not in explored_urls
+                    and href not in exploring_urls
+                    and is_same_domain(href, domain)
+                ):
+                    await queue.put(href)
+                    exploring_urls.add(href)
+
+        while queue.qsize() > 0 and len(explored_urls) < max_urls:
+            # take all the urls from the queue
+            urls = []
+            for _ in range(queue.qsize()):
+                urls.append(await queue.get())
+            # filter urls
+            urls = list(filter(lambda url: url not in explored_urls, urls))
+            urls = list(set(urls))  # take only unique urls
+            await asyncio.gather(*[helper(url) for url in urls])
 
     return explored_urls
 
 
 if __name__ == "__main__":
-    main(base_url="https://rev.ai/")
+    import asyncio
+    import datetime
+
+    start = datetime.datetime.now()
+    results = asyncio.run(main(base_url="https://rev.ai/"))
+    end = datetime.datetime.now()
+    print((end - start).total_seconds())
+    print(results)

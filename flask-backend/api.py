@@ -13,14 +13,14 @@ company_name = "ACME Inc."
 
 
 @app.route("/api/customerify/store", methods=["POST"])
-def store():
+async def store():
     global company_name
     if request.method == "POST":
         try:
             base_url = request.json.get("url")
             company_name = request.json.get("company_name")
             print(base_url)
-            urls = scrape.main(base_url, 10, 1)
+            urls = await scrape.main(base_url, 10, 1)
             print(urls)
             load_documents(list(urls))
             embed_documents()
