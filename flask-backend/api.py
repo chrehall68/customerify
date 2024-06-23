@@ -27,16 +27,17 @@ def store():
 @app.route("/api/customerify/query", methods=["POST"])
 def query():
     if request.method == "POST":
-        try:
-            query = request.json.get("query")
-            # print(query, company_name)
-            user_context.append("QUESTION: " + query)
-            response = query_index("\n\n".join(user_context))
-            user_context[-1] = "\nANSWER: " + str(response)
-            return str(response), 200
-
-        except:
-            return "", 500
+        # try:
+        query = request.json.get("query")
+        # print(query, company_name)
+        user_context.append("QUESTION: " + query)
+        response = query_index("\n\n".join(
+            user_context[:-1]) + "###############################\n" + user_context[-1])
+        user_context[-1] += "\nANSWER: " + str(response)
+        return str(response), 200
+        # return "\n\n".join(user_context), 200
+        # except:
+        #     return "", 500
 
 
 if __name__ == "__main__":

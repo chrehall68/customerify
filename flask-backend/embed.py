@@ -17,18 +17,18 @@ def embed_documents():
     pc = Pinecone(os.environ["PINECONE_API_KEY"])
     index_name = 'customerify'
 
-    if index_name in pc.list_indexes():
+    if index_name in pc.list_indexes().names():
         pc.delete_index(index_name)
 
-        pc.create_index(
-            name=index_name,
-            dimension=1536,
-            metric="cosine",
-            spec=ServerlessSpec(
-                cloud='aws',
-                region='us-east-1',
-            ),
-        )
+    pc.create_index(
+        name=index_name,
+        dimension=1536,
+        metric="cosine",
+        spec=ServerlessSpec(
+            cloud='aws',
+            region='us-east-1',
+        ),
+    )
 
     pinecone_index = pc.Index(index_name)
     vector_store = PineconeVectorStore(pinecone_index=pinecone_index)
