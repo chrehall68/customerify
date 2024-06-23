@@ -10,9 +10,13 @@ import VoiceResponse from "twilio/lib/twiml/VoiceResponse.js";
 import { v4 as uuidv4 } from "uuid";
 import fs, { writeFileSync } from "fs";
 import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
+import twilio from 'twilio';
 
-
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_API_KEY);
 const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
+var transcript;
+var callSid;
+var done;
 var totalBytes = Buffer.alloc(0)
 
 const a = expressWs(app);
@@ -21,51 +25,40 @@ app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-app.use(function (req, res, next) {
-  console.log("middleware");
-  req.testing = "testing";
-  return next();
-});
-
 app.get("/dev", (req, res) => {
-  console.log("get route", req.testing);
-  res.end();
+  return res.json({"result":"hello"});
 });
 
 app.post("/answer", (req, res) => {
-  console.log("post route", req.testing);
   var r = new VoiceResponse();
   r.say("Please say something");
   const start = r.start();
   start.stream({
-    name: "testStream",
     url: "wss://116c-2607-f140-6000-8006-593f-a7d5-8b98-a55e.ngrok-free.app/",
   });
-  r.pause({ length: 2 });
+  r.pause({ length: 120 })  // hardcoded constant;
+
+  transcript = "";
+  done = false;
+
+  // send response
   res.send(r.toString());
 });
 
 app.post("/respond", async (req, res) => {
-  console.log("post route", req.testing);
-  var f = req.body;
-  //console.log(f);
-  // now take SpeechResult and Confidence
-  const speechResult = f.SpeechResult;
-  const confidence = f.Confidence;
+  const speechResult = transcript;
   var r = new VoiceResponse();
 
   const speech = new Speech(process.env.LMNT_API_KEY);
   const text =
-    "Alright, I'm " +
-    parseInt("" + confidence * 100) +
-    "% sure that you said: " +
+    "Alright, I'm pretty sure that you said: "+
     speechResult;
   console.log(text);
+  
   var output = await speech.synthesize(text, "lily", {
     format: "wav",
     sample_rate: 8000,
   });
-  console.log("finished await");
 
   const filename = uuidv4() + ".wav";
   fs.writeFileSync("./public/" + filename, output.audio);
@@ -85,14 +78,34 @@ app.ws("/", function (ws, req) {
     sample_rate:8000,
     channels: 1,
   });
+  ws.on("message", (message) => {
+    message = JSON.parse(message);
+    if (message['event'] === "start") {
+      callSid = message['start']['callSid'];
+    }
+  })
 
   deepgram.addListener(LiveTranscriptionEvents.Open, async () => {
     console.log("deepgram: connected");
 
-    deepgram.addListener(LiveTranscriptionEvents.Transcript, (data) => {
+    deepgram.addListener(LiveTranscriptionEvents.Transcript, async (data) => {
       console.log("deepgram: transcript received");
-      console.log("ws: transcript sent to client");
-      console.log(JSON.stringify(data));
+      const tempTranscript = data.channel.alternatives[0].transcript;
+      console.log("Transcript: " + data.channel.alternatives[0].transcript);
+      if (tempTranscript === ""){
+        console.log("empty transcript, stopping with final transcript: " + transcript);
+        if (!done) {
+          done = true;
+          const msg = '<?xml version="1.0" encoding="UTF-8"?><Response><Stop><Stream/></Stop><Redirect>https://116c-2607-f140-6000-8006-593f-a7d5-8b98-a55e.ngrok-free.app/respond</Redirect></Response>';
+          await client.calls(callSid).update({
+            twiml: msg
+          })
+        }
+        deepgram.finish();
+      }
+      else{
+        transcript += " " +  tempTranscript;
+      }
     });
 
     deepgram.addListener(LiveTranscriptionEvents.Close, async () => {
@@ -109,25 +122,15 @@ app.ws("/", function (ws, req) {
       console.warn(warning);
     });
 
-    deepgram.addListener(LiveTranscriptionEvents.Metadata, (data) => {
-      console.log("deepgram: metadata received");
-      console.log("ws: metadata sent to client");
-      console.log(JSON.stringify({ metadata: data }));
-    });
-
     ws.on("message", (message) => {
       message = JSON.parse(message);
-      console.log("ws: client data received");
       if (message['event'] === "media"){
-        console.log("ws: data sent to deepgram");
         totalBytes = Buffer.concat([totalBytes, Buffer.from(message["media"]["payload"], "base64")]);
         deepgram.send(Buffer.from(message["media"]["payload"], "base64"));
       }
     });
     ws.on("close", () => {
       console.log("ws: client disconnected");
-      //deepgram.finish();
-      //console.log("finished removing listeners");
       writeFileSync("totalBytes.txt", totalBytes);
     });
   });
