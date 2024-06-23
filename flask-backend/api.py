@@ -3,11 +3,12 @@ from embed import load_documents, embed_documents
 from rag import query_index
 import scrape
 from typing import Dict, List
+from collections import defaultdict
 
 app = Flask(__name__)
 
 # maps Call ID: message history
-user_context: Dict[str, List[str]] = {}
+user_context: Dict[str, List[str]] = defaultdict(list)
 company_name = "ACME Inc."
 
 
@@ -40,10 +41,13 @@ def query():
             # print(query, company_name)
             user_context[request.json.get("call_id")].append("QUESTION: " + query)
             response = query_index("\n\n".join(user_context))
-            user_context[-1] = "\nANSWER: " + str(response)
+            user_context[request.json.get("call_id")][-1] += "\nANSWER: " + str(
+                response
+            )
             return str(response), 200
 
-        except:
+        except Exception as e:
+            print(e)
             return "", 500
 
 

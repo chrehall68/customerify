@@ -15,7 +15,7 @@ import twilio from 'twilio';
 // globals
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_API_KEY);
 const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
-var transcript;
+var transcript = "";
 var callSid;
 var done;
 var totalBytes = Buffer.alloc(0)
@@ -46,6 +46,7 @@ app.post("/deploy", async (req, res) => {
     var output = await speech.synthesize(text, "lily", {
       format: "wav",
       sample_rate: 8000,
+      speed: 1.25,
     });
 
     const filename = uuidv4() + ".wav";
@@ -84,7 +85,7 @@ app.post("/respond", async (req, res) => {
   var r = new VoiceResponse();
 
   const speech = new Speech(process.env.LMNT_API_KEY);
-  const text = await fetch(process.env.FLASK_URL + "/api/customerify/query", {
+  const resp = await fetch(process.env.FLASK_URL + "/api/customerify/query", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -93,18 +94,21 @@ app.post("/respond", async (req, res) => {
       query: speechResult,
       call_id: callSid,
     }),
-  })
-  console.log("received text: " + text);
+  });
+  console.log(resp);
+  const text = await resp.text()
+  console.log(text);
   var output = await speech.synthesize(text, "lily", {
     format: "wav",
     sample_rate: 8000,
+    speed: 1.25,
   });
 
   const filename = uuidv4() + ".wav";
   fs.writeFileSync("./public/" + filename, output.audio);
 
   r.play(filename);
-  r.redirect("/lsten");
+  r.redirect("/listen");
 
   res.send(r.toString());
 });
@@ -132,7 +136,7 @@ app.ws("/", function (ws, req) {
       console.log("deepgram: transcript received");
       const tempTranscript = data.channel.alternatives[0].transcript;
       console.log("Transcript: " + data.channel.alternatives[0].transcript);
-      if (tempTranscript === ""){
+      if (tempTranscript === "" && transcript !== "") {
         console.log("empty transcript, stopping with final transcript: " + transcript);
         if (!done) {
           done = true;
@@ -140,11 +144,12 @@ app.ws("/", function (ws, req) {
           await client.calls(callSid).update({
             twiml: msg
           })
+          deepgram.finish();
         }
-        deepgram.finish();
       }
       else{
         transcript += " " +  tempTranscript;
+        transcript = transcript.trim();
       }
     });
 
@@ -176,4 +181,5 @@ app.ws("/", function (ws, req) {
   });
 });
 
+console.log('listening on port ' + PORT);
 app.listen(PORT);
