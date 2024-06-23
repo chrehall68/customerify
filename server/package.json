@@ -1,0 +1,19 @@
+{
+  "name": "realtime-transcriptions",
+  "version": "0.0.1",
+  "description": "Real Time Transcriptions with Twilio",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "express-ws": "^5.0.2",
+    "lmnt-node": "^1.2.0",
+    "twilio": "^5.2.0",
+    "uuid": "^10.0.0"
+  }
+}
