@@ -4,10 +4,7 @@ from llama_index.vector_stores.pinecone import PineconeVectorStore
 from llama_index.llms.groq import Groq
 from llama_index.core import VectorStoreIndex
 from llama_index.core.llms import ChatMessage
-# from llama_index.core.query_pipeline import QueryPipeline
-# from llama_index.core.postprocessor import LLMRerank
 from llama_index.core.retrievers import VectorIndexRetriever
-# from llama_index.core.response_synthesizers import TreeSummarize
 
 
 def query_index(query, company_name=" a company"):
@@ -20,10 +17,6 @@ def query_index(query, company_name=" a company"):
     vector_index = VectorStoreIndex.from_vector_store(
         vector_store=vector_store)
 
-    # init_prompt = "Given the following query, please rephrase the very LAST 'QUESTION' following the line of hashtags in the given query that does not have an answer right after.\n\nQuery: {query}\n\nAnswer:"
-
-    # prompt_tmpl = PromptTemplate(init_prompt)
-    # summary_prompt = PromptTemplate(prompt_str)
     llm = Groq(model="llama3-70b-8192", api_key=os.environ["GROQ_API_KEY"])
     retriever = VectorIndexRetriever(index=vector_index, similarity_top_k=3)
 
@@ -51,8 +44,6 @@ def query_index(query, company_name=" a company"):
     ]
 
     response = llm.chat(messages)
-    # print(response.message.content.strip())
-
     return response.message.content.strip()
 
 
