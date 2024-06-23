@@ -1,43 +1,70 @@
 import streamlit as st
+import requests
+import os
+
+deploy_result = None
+
+
+def deploy(company_name: str, url: str) -> bool:
+    # make a post request to backend to deploy an agent for this company
+    return (
+        requests.post(
+            os.environ["BACKEND_BASE_URL"] + "/api/customerify/store",
+            json={"company_name": company_name, "url": url},
+        ).status_code
+        == 200
+    )
+
 
 # Initialize session state to store submissions
-if 'additional_submissions' not in st.session_state:
-    st.session_state['additional_submissions'] = []
+if "additional_submissions" not in st.session_state:
+    st.session_state["additional_submissions"] = []
 
-if 'main_submissions' not in st.session_state:
-    st.session_state['main_submissions'] = []
+if "main_submissions" not in st.session_state:
+    st.session_state["main_submissions"] = []
 
 # Title of the app
-st.title("Customer Service App")
+st.title("Customerify Portal")
 
-# Display phone number
-st.write("### Phone Number")
-st.text_input("Phone Number", value="867-5309", disabled=True)
+st.write(
+    "Welcome to your Customerify portal.\n\n From here, you can configure a specialized customer service agent"
+    " for your company. Simply enter your company name and URLs to be indexed and deployed as customers."
+    " Simply enter your business's name, select your information source, and hit deploy!"
+    " Once your agent is deployed, customers can call in and receive answers from your agent in real time.",
+)
 
 # Additional text input box
-additional_text_input = st.text_input("Enter company name here:", key="additional_input")
+# TODO - if we have time, setup some sort of auth (even if its just a dummy login page) so that
+# we can get company name from that instead of this input
+company_input = st.text_input("Company Name:", key="company_name")
 
-# Submit button for the additional text input box
-if st.button("Submit company name"):
-    if additional_text_input:  # Ensure the input is not empty
-        st.session_state['additional_submissions'].append(additional_text_input)
-        st.success(f"Company name submitted: {additional_text_input}")
-    else:
-        st.error("Please enter company name before submitting.")
-
-# Main text input box
-text_input = st.text_input("Enter URL here:", key="main_input")
+# website url
+url_input = st.text_input(
+    "Website URL:",
+    key="website_url",
+    help="This acts as the primary source of information for your customer service agent",
+)
 
 # Submit button for the main text input box
-if st.button("Submit URLs"):
-    if text_input:  # Ensure the input is not empty
-        st.session_state['main_submissions'].append(text_input)
-        st.success(f"URL submitted: {text_input}")
+if st.button(
+    "Deploy",
+):
+    if url_input:  # Ensure the input is not empty
+        st.session_state["url"] = url_input
+        st.success(f"Company {company_input} and URL {url_input} submitted!")
+        deploy_result = deploy(company_input, url_input)
     else:
         st.error("Please a URL before submitting.")
 
+if deploy_result:
+    phone_number = os.environ["PHONE_NUMBER"]
+    st.write(f"Deployed at {phone_number}! Just call {phone_number} to get started.")
+elif deploy_result == False:
+    st.error("Failed to deploy. check your url and try again.")
+
+
 # Display all submissions for the main text input box
-if st.session_state['main_submissions']:
+if st.session_state["main_submissions"]:
     st.write("### URLs submitted:")
-    for i, submission in enumerate(st.session_state['main_submissions'], 1):
+    for i, submission in enumerate(st.session_state["main_submissions"], 1):
         st.write(f"{i}. {submission}")

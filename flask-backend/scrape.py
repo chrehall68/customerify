@@ -27,10 +27,15 @@ def is_same_domain(url: str, domain: str) -> bool:
 
 
 def is_valid_url(url: str) -> bool:
-    return url.startswith("https://") or url.startswith("http://")
+    denied_prefixes = [".xml", ".json", ".pdf", ".mp3", ".wav", ".webp", ".webm"]
+    return (url.startswith("https://") or url.startswith("http://")) and not any(
+        url.endswith(prefix) for prefix in denied_prefixes
+    )
 
 
-def main(base_url: str):
+def main(base_url: str, max_urls: int = -1, timeout: int = 5) -> set:
+    if max_urls == -1:
+        max_urls = float("inf")
     domain = get_domain_name(base_url)
     print(domain)
     explored_urls = set()
@@ -39,10 +44,10 @@ def main(base_url: str):
 
     # basically, we can do a bfs from the base url
     queue.append(base_url)
-    while len(queue) > 0:
+    while len(queue) > 0 and len(explored_urls) < max_urls:
         url = queue.popleft()
         explored_urls.add(url)
-        soup = bs4.BeautifulSoup(requests.get(url).text, "html.parser")
+        soup = bs4.BeautifulSoup(requests.get(url, timeout=timeout).text, "html.parser")
 
         for link in soup.find_all("a"):
             href = link.get("href", "")

@@ -1,11 +1,14 @@
 from flask import Flask, request
 from embed import load_documents, embed_documents
 from rag import query_index
+import scrape
+from typing import Dict, List
 
 app = Flask(__name__)
 
-user_context = []
-company_name = "a company"
+# maps Call ID: message history
+user_context: Dict[str, List[str]] = {}
+company_name = "ACME Inc."
 
 
 @app.route("/api/customerify/store", methods=["POST"])
@@ -13,13 +16,13 @@ def store():
     global company_name
     if request.method == "POST":
         try:
-            urls = request.json.getlist("urls")
+            base_url = request.json.get("url")
             company_name = request.json.get("company_name")
+            print(base_url)
+            urls = scrape.main(base_url, 10, 1)
             print(urls)
             load_documents(urls)
             embed_documents()
-
-            return "Success", 200
         except:
             return "", 500
 
@@ -40,4 +43,4 @@ def query():
 
 
 if __name__ == "__main__":
-    app.run('0.0.0.0')
+    app.run("0.0.0.0")
