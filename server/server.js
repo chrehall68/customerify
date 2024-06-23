@@ -95,7 +95,6 @@ app.post("/respond", async (req, res) => {
       call_id: callSid,
     }),
   });
-  console.log(resp);
   const text = await resp.text()
   console.log(text);
   var output = await speech.synthesize(text, "lily", {

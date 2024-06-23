@@ -40,7 +40,11 @@ def query():
             query = request.json.get("query")
             # print(query, company_name)
             user_context[request.json.get("call_id")].append("QUESTION: " + query)
-            response = query_index("\n\n".join(user_context))
+            print(query)
+            response = query_index(
+                "\n\n".join(user_context[request.json.get("call_id")]),
+                company_name=company_name,
+            )
             user_context[request.json.get("call_id")][-1] += "\nANSWER: " + str(
                 response
             )
